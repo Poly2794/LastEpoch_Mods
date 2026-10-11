@@ -1,5 +1,6 @@
 using System;
 using LastEpoch_Hud.Scripts.Core.ModUI;
+using LastEpoch_Hud.Scripts.ModUI.Settings;
 using LastEpoch_Hud.Scripts.ModUI.Shell;
 using UnityEngine;
 using UnityEngine.UI;
@@ -109,6 +110,60 @@ internal static class WorldMonolithsPage
                     v
         );
 
+        var encounters = page.AddCard("EchoEncounters", "Echo Encounters");
+        AddAlways(
+            encounters,
+            "AlwaysNemesis",
+            "Always Spawn Nemesis",
+            ModSettings.EchoEncounters.AlwaysNemesis
+        );
+        AddAlways(
+            encounters,
+            "AlwaysBloodRitual",
+            "Always Spawn Blood Ritual",
+            ModSettings.EchoEncounters.AlwaysBloodRitual
+        );
+        AddAlways(
+            encounters,
+            "AlwaysLostCache",
+            "Always Spawn Lost Cache",
+            ModSettings.EchoEncounters.AlwaysLostCache
+        );
+        AddAlways(
+            encounters,
+            "AlwaysRiftBeast",
+            "Always Spawn Rift Beast",
+            ModSettings.EchoEncounters.AlwaysRiftBeast
+        );
+        AddAlways(
+            encounters,
+            "AlwaysOmenWindow",
+            "Always Spawn Omen Window",
+            ModSettings.EchoEncounters.AlwaysOmenWindow
+        );
+        AddCount(
+            encounters,
+            "RunePrisonCount",
+            "Rune Prisons Per Echo",
+            ModSettings.EchoEncounters.RunePrisonCount
+        );
+        AddCount(
+            encounters,
+            "FavourCacheCount",
+            "Favour Caches Per Echo",
+            ModSettings.EchoEncounters.FavourCacheCount
+        );
+        page.AddText(
+            encounters,
+            "EncountersNote",
+            "Applies from the next echo zone. Off = the game's own rates."
+        );
+        page.AddText(
+            encounters,
+            "EncountersSpotsWarning",
+            "Warning: echoes have a limited number of encounter spots. High Rune Prison or Favour Cache counts can crowd out other spawns such as shrines, champions and Nemesis."
+        );
+
         timelines = page.AddCard("Timelines", "Timelines");
         MonolithTimelineEditor.AttachTo(timelines.Body);
     }
@@ -187,6 +242,35 @@ internal static class WorldMonolithsPage
             }
         );
     }
+
+    // Echo encounter: checked = guaranteed in every echo; unchecked = the game's own rate.
+    private static void AddAlways(
+        HudFormPage.Card card,
+        string id,
+        string label,
+        BoolSetting setting
+    ) => page.AddToggle(card, id, label, () => setting.Value, v => setting.Set(v));
+
+    // Echo encounter count: off = the game's own rate; on = exactly 0-10 per echo zone.
+    private static void AddCount(
+        HudFormPage.Card card,
+        string id,
+        string label,
+        FloatSetting setting
+    ) =>
+        page.AddToggleSlider(
+            card,
+            id,
+            label,
+            string.Empty,
+            0f,
+            10f,
+            true,
+            () => setting.Enabled,
+            v => setting.SetEnabled(v),
+            () => setting.Value,
+            v => setting.SetValue(v)
+        );
 
     private static bool HasSave() =>
         !Save_Manager.instance.IsNullOrDestroyed() && Save_Manager.instance.initialized;
