@@ -1,4 +1,5 @@
-﻿using HarmonyLib;
+﻿using System.Collections.Generic;
+using HarmonyLib;
 using Il2Cpp;
 using LastEpoch_Hud.Scripts.Core.Skills;
 using LastEpoch_Hud.Scripts.ModUI;
@@ -126,6 +127,12 @@ internal static class Skills_CastWhenOutOfMana
                 );
                 if (!ready)
                 {
+                    Trace(
+                        MovementHeld() ? "waiting (moving)" : "waiting for previous cast",
+                        __0,
+                        cost,
+                        false
+                    );
                     return;
                 }
                 AbilityInfo info = __instance.mutatorManager?.getMutatorOrAbility(__0);
@@ -134,12 +141,14 @@ internal static class Skills_CastWhenOutOfMana
                     || !__instance.canUseAbilityChecksAfterManaAndCooldown(__0, info, __1)
                 )
                 {
+                    Trace("other checks failed", __0, cost, false);
                     return;
                 }
                 __2 = true;
                 _overriddenAbility = __0.Pointer;
                 _pacer.ForcedCastStarted(Time.time);
                 _overrideExpires = Time.time + 3f;
+                Trace("override", __0, cost, true);
             }
             catch (System.Exception ex)
             {
@@ -188,11 +197,15 @@ internal static class Skills_CastWhenOutOfMana
                 return;
             }
             bool forced = _overriddenAbility == __0.Pointer && Time.time <= _overrideExpires;
+            if (forced)
+            {
+                _pacer.ForcedCastReleased(__0.Pointer.ToInt64(), Time.time);
+            }
+            LogCastTiming(__instance, __0, forced);
             if (!forced)
             {
                 return;
             }
-            _pacer.ForcedCastReleased(__0.Pointer.ToInt64(), Time.time);
             if (!__2 || !AnyMode())
             {
                 return;
@@ -203,6 +216,7 @@ internal static class Skills_CastWhenOutOfMana
             {
                 __state = CostOf(__instance.baseMana, __0);
             }
+            Trace("spend skipped", __0, CostOf(__instance.baseMana, __0), true);
         }
 
         [HarmonyPostfix]
@@ -214,6 +228,7 @@ internal static class Skills_CastWhenOutOfMana
             }
             // The cast's duration is set once it has started; pace the next forced cast by it.
             _pacer.CastReleased(Time.time, __instance.castDuration);
+            _loggedCastDuration = __instance.castDuration;
             _lastCastPosition = __instance.transform.position;
             if (__state <= 0f)
             {
@@ -225,6 +240,7 @@ internal static class Skills_CastWhenOutOfMana
                 if (!mana.IsNullOrDestroyed())
                 {
                     mana.reduceMana(__state);
+                    Trace("charged after cast", __0, __state, true);
                 }
             }
             catch (System.Exception ex)
@@ -232,5 +248,72 @@ internal static class Skills_CastWhenOutOfMana
                 ErrorLog.Report(ex, "Skills_CastWhenOutOfMana");
             }
         }
+    }
+
+    // Diagnostic, local only: every player cast with the time since that skill's last cast and
+    // the previous cast's duration, to compare forced casts with normal ones.
+    private static readonly Dictionary<System.IntPtr, float> _lastCastTimeByAbility = new();
+    private static float _loggedCastDuration = 0f;
+
+    private static void LogCastTiming(UsingAbility usingAbility, Ability ability, bool forced)
+    {
+        float now = Time.time;
+        string gap = _lastCastTimeByAbility.TryGetValue(ability.Pointer, out float last)
+            ? ((int)((now - last) * 1000f)).ToString() + " ms"
+            : "first";
+        _lastCastTimeByAbility[ability.Pointer] = now;
+        BaseMana mana = usingAbility.baseMana;
+        Main.logger_instance?.Msg(
+            "[Mana] cast: "
+                + ability.abilityName
+                + " gap "
+                + gap
+                + " castDuration "
+                + (int)(_loggedCastDuration * 1000f)
+                + " ms mana "
+                + (mana.IsNullOrDestroyed() ? -1 : (int)mana.currentMana)
+                + " cost "
+                + CostOf(mana, ability)
+                + " mode "
+                + ModeName()
+                + (
+                    forced
+                        ? " (mod bypass, wind-up "
+                            + (int)(_pacer.WindupFraction(ability.Pointer.ToInt64()) * 100f)
+                            + "%)"
+                        : ""
+                )
+        );
+    }
+
+    private static string ModeName() =>
+        ModSettings.SkillsMana.AllowNegativeMana.Value ? "negative"
+        : ModSettings.SkillsMana.CastWhenOutOfMana.Value ? "free"
+        : "off";
+
+    // Diagnostic, local only: one line per step whenever its outcome changes.
+    private static readonly Dictionary<string, string> _lastTrace = new();
+
+    private static void Trace(string step, Ability ability, float cost, bool result)
+    {
+        BaseMana mana = PlayerMana();
+        string state =
+            (ability.IsNullOrDestroyed() ? "" : ability.abilityName + " ")
+            + "cost "
+            + cost
+            + " mana "
+            + (mana.IsNullOrDestroyed() ? -1 : (int)mana.currentMana)
+            + " canGoNegative "
+            + (!mana.IsNullOrDestroyed() && mana.canGoNegative)
+            + " mode "
+            + ModeName()
+            + " => "
+            + result;
+        if (_lastTrace.TryGetValue(step, out string last) && last == state)
+        {
+            return;
+        }
+        _lastTrace[step] = state;
+        Main.logger_instance?.Msg("[Mana] " + step + ": " + state);
     }
 }

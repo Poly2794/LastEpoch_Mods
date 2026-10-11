@@ -24,19 +24,48 @@ public class Mobs_Density
         }
     }
 
+    // Diagnostic: last line logged, so per-frame spawn rolls don't flood the log.
+    static string lastDensityLog = null;
+
     public static void Apply(SpawnerPlacementManager manager)
     {
-        if ((!CanRun()) || (manager.IsNullOrDestroyed()))
+        if (manager.IsNullOrDestroyed())
         {
             return;
         }
-        manager.defaultSpawnerDensity = Save_Manager
-            .instance
-            .data
-            .Character
-            .Cheats
-            .DensityMultiplier;
-        manager.alwaysRollSpawnerDensity = false;
+        float before = manager.defaultSpawnerDensity;
+        bool alwaysRollBefore = manager.alwaysRollSpawnerDensity;
+        bool canRun = CanRun();
+        if (canRun)
+        {
+            manager.defaultSpawnerDensity = Save_Manager
+                .instance
+                .data
+                .Character
+                .Cheats
+                .DensityMultiplier;
+            manager.alwaysRollSpawnerDensity = false;
+        }
+        // Diagnostic: this overwrites the zone's density, monolith echoes included.
+        // Logged even when off, to show the game's own value.
+        string line =
+            "[Density] Spawner density: scene="
+            + Scenes.SceneName
+            + ", multiplierOn="
+            + canRun
+            + ", before="
+            + before
+            + ", after="
+            + manager.defaultSpawnerDensity
+            + ", alwaysRoll before="
+            + alwaysRollBefore
+            + " after="
+            + manager.alwaysRollSpawnerDensity;
+        if (line != lastDensityLog)
+        {
+            lastDensityLog = line;
+            Main.logger_instance?.Msg(line);
+        }
     }
 
     [HarmonyPatch(typeof(SpawnerPlacementManager), "RollSpawners", new System.Type[] { })]
