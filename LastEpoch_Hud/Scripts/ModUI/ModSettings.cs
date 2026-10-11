@@ -171,6 +171,44 @@ public static class ModSettings
         );
     }
 
+    // Random encounters in echoes. Off = the game's own rates; campaign zones are never changed.
+    public static class EchoEncounters
+    {
+        public static readonly SettingsGroup Group = new SettingsGroup("EchoEncounters");
+        public static readonly BoolSetting AlwaysNemesis = Group.Bool(
+            "AlwaysNemesis",
+            label: "Always Spawn Nemesis"
+        );
+        public static readonly BoolSetting AlwaysBloodRitual = Group.Bool(
+            "AlwaysBloodRitual",
+            label: "Always Spawn Blood Ritual"
+        );
+        public static readonly BoolSetting AlwaysLostCache = Group.Bool(
+            "AlwaysLostCache",
+            label: "Always Spawn Lost Cache"
+        );
+        public static readonly BoolSetting AlwaysRiftBeast = Group.Bool(
+            "AlwaysRiftBeast",
+            label: "Always Spawn Rift Beast"
+        );
+        public static readonly BoolSetting AlwaysOmenWindow = Group.Bool(
+            "AlwaysOmenWindow",
+            label: "Always Spawn Omen Window"
+        );
+
+        // Exact number per echo zone; 0 stops them spawning.
+        public static readonly FloatSetting RunePrisonCount = Group.Float(
+            "RunePrisonCount",
+            defaultValue: 1f,
+            label: "Rune Prisons Per Echo"
+        );
+        public static readonly FloatSetting FavourCacheCount = Group.Float(
+            "FavourCacheCount",
+            defaultValue: 1f,
+            label: "Favour Caches Per Echo"
+        );
+    }
+
     public static class TravelAnywhere
     {
         public static readonly SettingsGroup Group = new SettingsGroup("TravelAnywhere");
